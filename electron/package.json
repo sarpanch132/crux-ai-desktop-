@@ -1,0 +1,25 @@
+{
+  "name": "crux-electron",
+  "version": "1.0.0",
+  "description": "Electron main process for CruX",
+  "main": "dist/main/index.js",
+  "scripts": {
+    "dev": "tsc -w",
+    "build": "..\\node_modules\\.bin\\tsc.cmd",
+    "start": "electron ."
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "dotenv": "^16.3.1",
+    "electron-log": "^5.0.3",
+    "electron-store": "^8.1.0",
+    "socket.io": "^4.7.2",
+    "tree-sitter": "^0.20.6",
+    "zx": "^7.2.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "electron": "^41.3.0",
+    "typescript": "^5.3.3"
+  }
+}

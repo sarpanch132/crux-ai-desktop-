@@ -1,0 +1,45 @@
+{
+  "appId": "com.crux.desktop",
+  "productName": "CruX",
+  "copyright": "Copyright 2026 CruX",
+  "directories": {
+    "output": "release"
+  },
+  "files": [
+    "frontend/dist/**/*",
+    "electron/dist/**/*",
+    "package.json"
+  ],
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": ["x64"]
+      },
+      {
+        "target": "portable",
+        "arch": ["x64"]
+      }
+    ],
+    "artifactName": "${productName}-${version}-${arch}.${ext}"
+  },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": false,
+    "allowToChangeInstallationDirectory": true,
+    "deleteAppDataOnUninstall": false,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "CruX",
+    "installerLanguages": ["en_US"],
+    "language": "1033"
+  },
+  "portable": {
+    "artifactName": "${productName}-${version}-portable.${ext}"
+  },
+  "asar": true,
+  "compression": "maximum",
+  "npmRebuild": true,
+  "nodeGypRebuild": false,
+  "buildDependenciesFromSource": false
+}

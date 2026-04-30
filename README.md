@@ -1,64 +1,80 @@
 # CruX Desktop
 
-CruX Desktop is an Electron-based AI coding workspace that combines a modern desktop UI with code assistance and local development tooling.
+CruX Desktop is an Electron-based AI coding workspace focused on practical developer productivity: chat-driven coding support, project context, and safe local tooling.
 
-## Why This Project Stands Out
+## Product Preview
 
-- Desktop-first AI developer experience
-- Modular architecture across frontend, electron, backend, and shared modules
-- TypeScript-first codebase with linting and type checks
-- Packaged Windows build pipeline for distribution
+![CruX Desktop UI](docs/images/crux-desktop-ui.png)
 
-## Core Features
+## Why Recruiters Like This Project
 
-- AI-assisted coding workflows
-- Multi-model integration support
-- Integrated terminal and filesystem tools
-- Repository-aware project context
-- Production packaging with Electron
+- Real desktop product architecture (`frontend`, `electron`, `backend`, `shared`)
+- TypeScript-first implementation across UI and services
+- Local-first developer workflow with terminal and file tooling
+- Packaging pipeline for distributable Windows builds
+
+## What I Built
+
+- Chat-centric AI IDE experience with model routing hooks
+- Workspace/context panels for project-aware interaction
+- Integrated terminal and execution controls
+- Service-oriented backend modules for extensibility
+- End-to-end Electron app packaging setup
 
 ## Tech Stack
 
-- React + TypeScript (frontend)
-- Electron (desktop shell)
-- Node.js + TypeScript (backend/services)
-- ESLint + TypeScript checks
+- React + TypeScript
+- Electron
+- Node.js + TypeScript
+- TailwindCSS
+- ESLint
 
 ## Project Structure
 
 ```text
-frontend/   React app and UI logic
-electron/   Main process and preload scripts
-backend/    Services and API layer
-shared/     Shared types/constants
-tests/      Test suites
+frontend/   React UI and application state
+electron/   Main process, IPC, preload bridge
+backend/    Agent and tooling services
+shared/     Cross-layer types and constants
+tests/      Integration and stress test scaffolds
 ```
 
-## Getting Started
+## Quick Start
 
 ```bash
 npm install
 npm run dev
 ```
 
-## Quality Checks
+## Validation
 
 ```bash
 npm run lint
 npm run typecheck
 ```
 
-## Build and Package
+## Build
 
 ```bash
 npm run build
 npm run package
 ```
 
-## Release Notes
+## Limitations (Current)
 
-- Source code is versioned in this repository.
-- Windows binaries are published via GitHub Releases.
+- Local model/runtime setup may require machine-specific configuration
+- Some advanced agent paths are still under active hardening
+
+## Roadmap
+
+- Improve model setup diagnostics and onboarding UX
+- Add automated E2E CI pipeline
+- Publish installer and versioned release notes per build
+
+## Releases
+
+- This repository tracks source code.
+- Windows binaries are intended to be published in GitHub Releases.
 
 ## License
 

@@ -1,6 +1,6 @@
 {
   "appId": "com.crux.desktop",
-  "productName": "CruX",
+  "productName": "Crux AI",
   "copyright": "Copyright 2026 CruX",
   "directories": {
     "output": "release"
@@ -30,7 +30,7 @@
     "deleteAppDataOnUninstall": false,
     "createDesktopShortcut": true,
     "createStartMenuShortcut": true,
-    "shortcutName": "CruX",
+    "shortcutName": "Crux AI",
     "installerLanguages": ["en_US"],
     "language": "1033"
   },

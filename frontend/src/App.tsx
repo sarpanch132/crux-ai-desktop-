@@ -1,191 +1,86 @@
 import { Suspense, lazy, useEffect, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { Button } from './components/ui/button';
+import { Command } from 'cmdk';
+import { Toaster } from 'sonner';
+import { MotionConfig } from 'framer-motion';
+import { Asterisk, Bot, Folder, Home, PanelRight, Settings } from 'lucide-react';
 import { useStore } from './hooks/useStore';
-import cruxLogo from './assets/crux-logo.jpg';
 
 const PremiumSidebar = lazy(() => import('./components/PremiumSidebar').then((module) => ({ default: module.PremiumSidebar })));
 const PremiumChat = lazy(() => import('./components/PremiumChat').then((module) => ({ default: module.PremiumChat })));
-const ModelManager = lazy(() => import('./components/ModelManager').then((module) => ({ default: module.ModelManager })));
 const SettingsView = lazy(() => import('./components/SettingsView').then((module) => ({ default: module.SettingsView })));
 const ContextPanel = lazy(() => import('./components/ContextPanel').then((module) => ({ default: module.ContextPanel })));
-const TerminalPanel = lazy(() => import('./components/TerminalPanel').then((module) => ({ default: module.TerminalPanel })));
-const CommandPalette = lazy(() => import('./components/CommandPalette').then((module) => ({ default: module.CommandPalette })));
+const AgentsSkillsPanel = lazy(() => import('./components/AgentsSkillsPanel').then((module) => ({ default: module.AgentsSkillsPanel })));
+function Loading() { return <div className="workspace-loading" role="status">Loading workspace…</div>; }
 
-function PaneSkeleton() {
-  return (
-    <div className="flex h-full items-center justify-center bg-background">
-      <div className="glass-card rounded-3xl px-6 py-5 text-sm text-muted-foreground">
-        Loading CruX workspace...
-      </div>
-    </div>
-  );
-}
 
-function AppShell() {
-  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
-  const {
-    initialized,
-    currentView,
-    rightPanelOpen,
-    terminalOpen,
-    sidebarOpen,
-    settings,
-    projectPath,
-    initialize,
-    bindRuntimeEvents,
-    setRightPanelOpen,
-    setSidebarOpen,
-    setTerminalOpen,
-  } = useStore((state) => ({
-    initialized: state.initialized,
-    currentView: state.currentView,
-    rightPanelOpen: state.rightPanelOpen,
-    terminalOpen: state.terminalOpen,
-    sidebarOpen: state.sidebarOpen,
-    settings: state.settings,
-    projectPath: state.projectPath,
-    initialize: state.initialize,
-    bindRuntimeEvents: state.bindRuntimeEvents,
-    setRightPanelOpen: state.setRightPanelOpen,
-    setSidebarOpen: state.setSidebarOpen,
-    setTerminalOpen: state.setTerminalOpen,
-  }));
-
+function CommandPalette() {
+  const [open, setOpen] = useState(false);
+  const store = useStore();
   useEffect(() => {
-    initialize().catch((error) => {
-      console.error('Failed to initialize CruX:', error);
-    });
-    const dispose = bindRuntimeEvents();
-    return dispose;
-  }, [bindRuntimeEvents, initialize]);
-
-  if (!initialized) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <div className="glass-card flex w-[28rem] flex-col gap-4 rounded-3xl p-8">
-          <div className="flex items-center gap-4">
-            <div className="crux-logo-shell max-w-[180px]">
-              <img src={cruxLogo} alt="cruX" className="crux-logo crux-logo-lg" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-semibold text-white">Preparing your AI workspace</h1>
-            </div>
-          </div>
-          <div className="overflow-hidden rounded-full bg-white/5">
-            <motion.div
-              className="h-2 rounded-full bg-[linear-gradient(90deg,#60a5fa,#38bdf8,#22d3ee)]"
-              animate={{ x: ['-100%', '120%'] }}
-              transition={{ repeat: Number.POSITIVE_INFINITY, duration: 1.4, ease: 'easeInOut' }}
-            />
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Loading settings, model health, project context, and terminal state.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex h-screen bg-background text-foreground">
-      <AnimatePresence initial={false}>
-        {sidebarOpen && (
-          <motion.aside
-            key="sidebar"
-            initial={{ width: 0, opacity: 0 }}
-            animate={{ width: 320, opacity: 1 }}
-            exit={{ width: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="border-r border-white/6"
-          >
-            <Suspense fallback={<PaneSkeleton />}>
-              <PremiumSidebar onOpenCommandPalette={() => setCommandPaletteOpen(true)} />
-            </Suspense>
-          </motion.aside>
-        )}
-      </AnimatePresence>
-
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="drag flex h-16 items-center justify-between border-b border-white/6 bg-black/35 px-4 backdrop-blur-xl">
-          <div className="no-drag flex min-w-0 items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)}>
-              <span className="text-sm tracking-tight">|||</span>
-            </Button>
-            <div className="crux-logo-shell max-w-[132px]">
-              <img src={cruxLogo} alt="cruX" className="crux-logo crux-logo-sm" />
-            </div>
-            <div className="min-w-0">
-              <p className="truncate text-xs text-muted-foreground">
-                {projectPath ? projectPath : 'No project open'} | {settings?.provider ?? 'provider'} / {settings?.model ?? 'model'}
-              </p>
-            </div>
-          </div>
-
-          <div className="no-drag flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setCommandPaletteOpen(true)}>
-              Search
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => setRightPanelOpen(!rightPanelOpen)}>
-              {rightPanelOpen ? 'Hide Panel' : 'Show Panel'}
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => setTerminalOpen(!terminalOpen)}>
-              {terminalOpen ? 'Hide Terminal' : 'Show Terminal'}
-            </Button>
-          </div>
-        </header>
-
-        <div className="flex min-h-0 flex-1">
-          <main className="min-w-0 flex-1">
-            <Suspense fallback={<PaneSkeleton />}>
-              {currentView === 'chat' && <PremiumChat />}
-              {currentView === 'models' && <ModelManager />}
-              {currentView === 'settings' && <SettingsView />}
-              {currentView === 'projects' && <ContextPanel standalone />}
-            </Suspense>
-          </main>
-
-          <AnimatePresence initial={false}>
-            {rightPanelOpen && currentView !== 'projects' && (
-              <motion.aside
-                key="context"
-                initial={{ width: 0, opacity: 0 }}
-                animate={{ width: 360, opacity: 1 }}
-                exit={{ width: 0, opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="border-l border-white/6"
-              >
-                <Suspense fallback={<PaneSkeleton />}>
-                  <ContextPanel />
-                </Suspense>
-              </motion.aside>
-            )}
-          </AnimatePresence>
-        </div>
-
-        <AnimatePresence initial={false}>
-          {terminalOpen && (
-            <motion.div
-              key="terminal"
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 280, opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="border-t border-white/6"
-            >
-              <Suspense fallback={<PaneSkeleton />}>
-                <TerminalPanel />
-              </Suspense>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      <Suspense fallback={null}>
-        <CommandPalette isOpen={commandPaletteOpen} onClose={() => setCommandPaletteOpen(false)} />
-      </Suspense>
-    </div>
-  );
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault(); setOpen(value => !value);
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key === '`' && store.projectPath) {
+        event.preventDefault(); store.setCurrentView('chat'); store.setRightPanelOpen(true); store.setTerminalOpen(!useStore.getState().terminalOpen);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [store.projectPath]);
+  const workspace = (tab: typeof store.rightPanelTab) => {store.setCurrentView('chat'); store.setHubOpen(false); store.setRightPanelTab(tab); store.setRightPanelOpen(true);};
+  const actions = [
+    {label: 'Open Project', run: () => void store.openProject()},
+    {label: 'New Task', run: () => {store.createConversation(); store.setCurrentView('chat');}},
+    {label: 'Open Files', run: () => workspace('files')},
+    {label: 'Search Project', run: () => workspace('search')},
+    {label: 'View Changes', run: () => workspace('changes')},
+    {label: 'View Problems', run: () => workspace('problems')},
+    {label: 'View Tests', run: () => workspace('tests')},
+    {label: 'Agent Activity', run: () => workspace('activity')},
+    ...(store.projectPath ? [{label: 'Open Terminal', run: () => {workspace('activity'); store.setTerminalOpen(true);}}] : []),
+    {label: 'View Agents', run: () => {store.setHubTab('agent'); store.setHubOpen(true);}},
+    {label: 'View Skills / Install from GitHub', run: () => {store.setHubTab('skill'); store.setHubOpen(true);}},
+    {label: 'AI Settings / Test Connection', run: () => store.setCurrentView('settings')},
+  ];
+  return <Command.Dialog open={open} onOpenChange={setOpen} label="Command palette" className="command-palette">
+    <h2 className="sr-only">Command palette</h2>
+    <Command.Input placeholder="Search workspace actions…" aria-label="Search workspace actions" />
+    <Command.List><Command.Empty>No matching action.</Command.Empty><Command.Group heading="Workspace">{actions.map(action => <Command.Item key={action.label} value={action.label} onSelect={() => {setOpen(false); action.run();}}>{action.label}</Command.Item>)}</Command.Group></Command.List>
+    <p className="command-hint">↑ ↓ navigate · Enter choose · Esc close</p>
+  </Command.Dialog>;
 }
 
-export default AppShell;
+export default function AppShell() {
+  const [panelWidth, setPanelWidth] = useState<number>();
+  const resizePanel = (event: React.PointerEvent) => {
+    event.preventDefault();
+    const resize = (move: PointerEvent) => setPanelWidth(Math.max(360, Math.min(720, window.innerWidth - move.clientX)));
+    const end = () => {window.removeEventListener('pointermove', resize); window.removeEventListener('pointerup', end);};
+    window.addEventListener('pointermove', resize); window.addEventListener('pointerup', end, {once: true});
+  };
+  const { initialized, currentView, rightPanelOpen, sidebarOpen, initialize, bindRuntimeEvents, setRightPanelOpen, setSidebarOpen, setCurrentView, hubOpen, setHubOpen, agentSnapshots, activeConversationId } = useStore();
+  const approvalPending = !!(activeConversationId && agentSnapshots[activeConversationId]?.approvals.length);
+  useEffect(() => {
+    void initialize().catch((error) => console.error('Failed to initialize Crux AI:', error));
+    return bindRuntimeEvents();
+  }, [initialize, bindRuntimeEvents]);
+  if (!initialized) return <Loading/>;
+  return <MotionConfig reducedMotion="user"><div className="crux-shell">
+    <nav className="icon-rail" aria-label="Main navigation">
+      <Asterisk className="rail-mark" aria-hidden="true"/>
+      <button className="rail-button" title="Tasks" aria-label="Tasks" aria-current={currentView === 'chat' ? 'page' : undefined} onClick={() => setCurrentView('chat')}><Home aria-hidden="true"/></button>
+      <button className="rail-button" title={sidebarOpen ? 'Hide projects and chats' : 'Show projects and chats'} aria-label={sidebarOpen ? 'Hide projects and chats' : 'Show projects and chats'} aria-expanded={sidebarOpen} onClick={() => setSidebarOpen(!sidebarOpen)}><Folder aria-hidden="true"/></button>
+      <button className="rail-button" title="Agents and Skills" aria-label="Agents and Skills" aria-expanded={hubOpen && !approvalPending && !rightPanelOpen} onClick={() => setHubOpen(!(hubOpen && !approvalPending && !rightPanelOpen))}><Bot aria-hidden="true"/></button>
+      <button className="rail-button rail-settings" title="Settings" aria-label="Settings" aria-current={currentView === 'settings' ? 'page' : undefined} onClick={() => setCurrentView('settings')}><Settings aria-hidden="true"/></button>
+    </nav>
+    {sidebarOpen && <aside className="navigation-pane"><Suspense fallback={<Loading/>}><PremiumSidebar/></Suspense></aside>}
+    <div className="workspace-main">
+      <div className="window-drag-strip drag"/>
+      {currentView === 'chat' && <button className="workspace-toggle panel-icon-button" aria-label={rightPanelOpen ? 'Hide workspace' : 'Show workspace'} title="Workspace details" aria-expanded={rightPanelOpen} onClick={() => {setHubOpen(false);setRightPanelOpen(!rightPanelOpen);}}><PanelRight aria-hidden="true" className="h-4 w-4"/></button>}
+      <main className="workspace-canvas"><Suspense fallback={<Loading/>}>{currentView === 'settings' ? <SettingsView/> : <PremiumChat/>}</Suspense></main>
+    </div>
+    {(rightPanelOpen || approvalPending) && currentView === 'chat' && <aside className="details-pane" style={panelWidth ? {width: panelWidth} : undefined}><div className="workspace-resize-handle" role="separator" aria-label="Resize workspace panel" aria-orientation="vertical" aria-valuemin={360} aria-valuemax={720} aria-valuenow={panelWidth ?? 480} tabIndex={0} onPointerDown={resizePanel} onKeyDown={event => {if(event.key === 'ArrowLeft' || event.key === 'ArrowRight'){event.preventDefault();setPanelWidth(value => Math.max(360, Math.min(720, (value ?? 480) + (event.key === 'ArrowLeft' ? 20 : -20))));}}}/><Suspense fallback={<Loading/>}><ContextPanel/></Suspense></aside>}
+    {hubOpen && !approvalPending && !rightPanelOpen && <aside className="hub-pane"><Suspense fallback={<Loading/>}><AgentsSkillsPanel/></Suspense></aside>}
+  </div><CommandPalette/><Toaster theme="dark" position="bottom-right" richColors closeButton/></MotionConfig>;
+}

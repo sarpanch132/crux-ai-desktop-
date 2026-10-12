@@ -31,7 +31,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     if (this.state.hasError) {
       return (
         <div className="flex h-screen items-center justify-center bg-background p-6">
-          <div className="glass-card flex max-w-xl flex-col gap-4 rounded-3xl p-8">
+          <div className="glass-card flex max-w-xl flex-col gap-4 rounded-lg p-8">
             <p className="text-sm uppercase tracking-[0.35em] text-rose-300/80">CruX Recovery</p>
             <h1 className="text-2xl font-semibold text-white">The renderer hit an unexpected error.</h1>
             <p className="text-sm text-muted-foreground">{this.state.errorMessage}</p>

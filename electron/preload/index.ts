@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { AISettings, ModelInfo, ProviderHealth } from '../services/aiService.js';
+import type { AISettings, ModelInfo, ProviderHealth, ConnectionTestResult, AutoModelResult, ModelVerificationStatus } from '../services/aiService.js';
 import type { TerminalOutput, TerminalSessionInfo } from '../services/terminalService.js';
+import type { AgentAPI } from '../services/agent/contracts.js';
 
 type AsyncResult<T> = Promise<{ success: boolean; data?: T; error?: string }>;
 
@@ -19,6 +20,7 @@ interface SearchResult {
 }
 
 export interface ElectronAPI {
+  agent: AgentAPI;
   file: {
     read: (filePath: string) => AsyncResult<string>;
     write: (filePath: string, content: string) => AsyncResult<void>;
@@ -45,6 +47,13 @@ export interface ElectronAPI {
     abort: () => AsyncResult<void>;
     getModels: () => AsyncResult<ModelInfo[]>;
     getHealth: () => AsyncResult<ProviderHealth[]>;
+    findWorkingModel: () => AsyncResult<AutoModelResult>;
+    getModelVerification: () => AsyncResult<ModelVerificationStatus>;
+    startModelVerification: (retest?: boolean) => AsyncResult<ModelVerificationStatus>;
+    resumeModelVerification: () => AsyncResult<ModelVerificationStatus>;
+    cancelModelVerification: () => AsyncResult<ModelVerificationStatus>;
+    testConnection: () => AsyncResult<ConnectionTestResult>;
+    getConnectionTest: () => AsyncResult<ConnectionTestResult | null>;
     getSettings: () => AsyncResult<AISettings>;
     updateSettings: (settings: Partial<AISettings>) => AsyncResult<AISettings>;
   };
@@ -52,6 +61,8 @@ export interface ElectronAPI {
     open: () => AsyncResult<string>;
     close: () => AsyncResult<void>;
     getPath: () => AsyncResult<string>;
+    listRecent: () => AsyncResult<string[]>;
+    activate: (projectPath: string) => AsyncResult<string>;
   };
   config: {
     get: (key: string) => AsyncResult<unknown>;
@@ -90,6 +101,33 @@ export interface ElectronAPI {
 }
 
 const api: ElectronAPI = {
+  agent: {
+    setExecutionOptions: (id,options) => ipcRenderer.invoke('agent:setExecutionOptions',id,options),
+    routingOptions: () => ipcRenderer.invoke('agent:routingOptions'),
+    setSemanticRouting: enabled => ipcRenderer.invoke('agent:setSemanticRouting',enabled),
+    catalog: () => ipcRenderer.invoke('agent:catalog'),
+    saveDefinition: (kind,draft,id,revision) => ipcRenderer.invoke('agent:saveDefinition',kind,draft,id,revision),
+    removeDefinition: (kind,id,revision) => ipcRenderer.invoke('agent:removeDefinition',kind,id,revision),
+    importGithub: url => ipcRenderer.invoke('agent:importGithub',url),
+    previewRoute: (text,selection) => ipcRenderer.invoke('agent:previewRoute',text,selection),
+    resetRoute: id => ipcRenderer.invoke('agent:resetRoute',id),
+    onProgress: callback => {
+      const handler = (_event: Electron.IpcRendererEvent, progress: Parameters<typeof callback>[0]) => callback(progress);
+      ipcRenderer.on('agent:progress',handler); return () => ipcRenderer.removeListener('agent:progress',handler);
+    },
+    open: id => ipcRenderer.invoke('agent:open', id),
+    snapshot: id => ipcRenderer.invoke('agent:snapshot', id),
+    setMode: (id, mode) => ipcRenderer.invoke('agent:setMode', id, mode),
+    setAccess: (id, level) => ipcRenderer.invoke('agent:setAccess', id, level),
+    configure: (id, capabilities, folders) => ipcRenderer.invoke('agent:configure', id, capabilities, folders),
+    run: (id, objective, attachments, selection, runId) => ipcRenderer.invoke('agent:run', id, objective, attachments, selection, runId),
+    stop: id => ipcRenderer.invoke('agent:stop', id),
+    approve: (id, requestId, decision) => ipcRenderer.invoke('agent:approve', id, requestId, decision),
+    installSkill: id => ipcRenderer.invoke('agent:installSkill', id),
+    buildSkill: (id, name, description, instructions) => ipcRenderer.invoke('agent:buildSkill', id, name, description, instructions),
+    removeSkill: (id, skillId) => ipcRenderer.invoke('agent:removeSkill', id, skillId),
+    execute: (id, request) => ipcRenderer.invoke('agent:execute', id, request),
+  },
   file: {
     read: (filePath) => ipcRenderer.invoke('file:read', filePath),
     write: (filePath, content) => ipcRenderer.invoke('file:write', filePath, content),
@@ -138,6 +176,13 @@ const api: ElectronAPI = {
     abort: () => ipcRenderer.invoke('ai:abort'),
     getModels: () => ipcRenderer.invoke('ai:getModels'),
     getHealth: () => ipcRenderer.invoke('ai:getHealth'),
+    testConnection: () => ipcRenderer.invoke('ai:testConnection'),
+    findWorkingModel: () => ipcRenderer.invoke('ai:findWorkingModel'),
+    getModelVerification: () => ipcRenderer.invoke('ai:getModelVerification'),
+    startModelVerification: (retest = false) => ipcRenderer.invoke('ai:startModelVerification', retest),
+    resumeModelVerification: () => ipcRenderer.invoke('ai:resumeModelVerification'),
+    cancelModelVerification: () => ipcRenderer.invoke('ai:cancelModelVerification'),
+    getConnectionTest: () => ipcRenderer.invoke('ai:getConnectionTest'),
     getSettings: () => ipcRenderer.invoke('ai:getSettings'),
     updateSettings: (settings) => ipcRenderer.invoke('ai:updateSettings', settings),
   },
@@ -145,6 +190,8 @@ const api: ElectronAPI = {
     open: () => ipcRenderer.invoke('project:open'),
     close: () => ipcRenderer.invoke('project:close'),
     getPath: () => ipcRenderer.invoke('project:getPath'),
+    listRecent: () => ipcRenderer.invoke('project:listRecent'),
+    activate: (projectPath) => ipcRenderer.invoke('project:activate', projectPath),
   },
   config: {
     get: (key) => ipcRenderer.invoke('config:get', key),

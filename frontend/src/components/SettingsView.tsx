@@ -1,233 +1,233 @@
-import { useMemo } from 'react';
-import { MoonStar, Save, Server, Shield, SlidersHorizontal } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+
+import { motion, useReducedMotion } from 'framer-motion';
+
+import { CheckCircle, XCircle, Loader2, Wifi } from 'lucide-react';
+
+import { toast } from 'sonner';
+
+import type { ConnectionTestResult } from '../../../electron/services/aiService';
+
 import { Button } from './ui/button';
+
 import { Input } from './ui/input';
+
+import { ModelSelector, providers } from './ModelSelector';
+
 import { useStore } from '../hooks/useStore';
 
-const providerOptions: Array<{ label: string; value: AISettings['provider'] }> = [
-  { label: 'Ollama', value: 'ollama' },
-  { label: 'OpenRouter', value: 'openrouter' },
-  { label: 'OpenAI', value: 'openai' },
-  { label: 'Anthropic', value: 'anthropic' },
-  { label: 'Custom', value: 'custom' },
-];
+
 
 export function SettingsView() {
-  const { settings, models, theme, setTheme, updateSettings } = useStore((state) => ({
-    settings: state.settings,
-    models: state.models,
-    theme: state.theme,
-    setTheme: state.setTheme,
-    updateSettings: state.updateSettings,
-  }));
 
-  const currentSettings = useMemo(() => settings ?? {
-    provider: 'ollama' as const,
-    model: 'qwen2.5-coder:3b',
-    temperature: 0.2,
-    maxTokens: 4096,
-    ollamaUrl: 'http://127.0.0.1:11434',
-    openaiBaseUrl: 'https://api.openai.com/v1',
-    customEndpoint: 'http://127.0.0.1:11434/v1',
-    apiKey: '',
-    autonomyLevel: 'guarded' as const,
-    toolPermissions: 'safe-only' as const,
-    performanceMode: 'balanced' as const,
+  const {settings, updateSettings, isGenerating, settingsSaving, autoModelLoading, connectionTesting, setConnectionTesting} = useStore();
+
+  const [draft,setDraft] = useState<AISettings | null>(settings);
+
+  const [key,setKey] = useState('');
+
+  const [clearKey,setClearKey] = useState(false);
+
+  const [dirty,setDirty] = useState(false);
+
+  const [busy,setBusy] = useState(false);
+
+  const [error,setError] = useState('');
+
+  const [notice,setNotice] = useState('');
+
+  const [testResult,setTestResult] = useState<ConnectionTestResult | null>(null);
+
+  const [testing,setTesting] = useState(false);
+
+  const [testError,setTestError] = useState('');
+
+  const [now,setNow] = useState(Date.now());
+
+  const testLock = useRef(false);
+
+  const testEpoch = useRef(0);
+
+  const reducedMotion = useReducedMotion();
+
+  useEffect(() => {
+
+    const epoch = ++testEpoch.current;
+
+    let canceled = false;
+
+    setTestResult(null); setTestError(''); setTesting(false); testLock.current = false;
+
+    if (settings?.provider) void window.electron.ai.getConnectionTest().then((result) => {
+
+      if (!canceled && epoch === testEpoch.current && result.success) setTestResult(result.data ?? null);
+
+    }).catch(() => undefined);
+
+    return () => {canceled = true; ++testEpoch.current;};
+
   }, [settings]);
 
-  const modelOptions = useMemo(() => {
-    const optionIds = new Set<string>();
-    const options: string[] = [];
+  useEffect(() => {const timer = window.setInterval(() => setNow(Date.now()), 30000);return () => window.clearInterval(timer);}, []);
 
-    for (const model of models) {
-      if (!optionIds.has(model.id)) {
-        optionIds.add(model.id);
-        options.push(model.id);
-      }
-    }
+  useEffect(() => {if (!dirty) setDraft(settings);},[settings,dirty]);
 
-    if (currentSettings.model && !optionIds.has(currentSettings.model)) {
-      options.unshift(currentSettings.model);
-    }
+  const change = (patch: Partial<AISettings>) => {
 
-    return options;
-  }, [models, currentSettings.model]);
+    if ('provider' in patch) {setKey(''); setClearKey(false); patch.model = '';}
 
-  return (
-    <div className="flex h-full flex-col bg-[radial-gradient(circle_at_top,rgba(168,85,247,0.08),transparent_22%),#05070d]">
-      <div className="border-b border-white/6 px-6 py-5">
-        <p className="text-xs uppercase tracking-[0.35em] text-violet-300/75">Settings</p>
-        <h1 className="mt-2 text-2xl font-semibold text-white">CruX configuration and safety controls</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Provider setup, model preferences, timeout behavior, and runtime safeguards all persist through Electron store.
-        </p>
-      </div>
+    setDraft((old) => old ? {...old, ...patch} : old);
 
-      <div className="grid flex-1 gap-5 overflow-auto px-6 py-6 lg:grid-cols-2">
-        <section className="glass-panel rounded-3xl p-5">
-          <div className="mb-4 flex items-center gap-2">
-            <Server className="h-4 w-4 text-cyan-300" />
-            <h2 className="text-lg font-semibold text-white">Provider</h2>
-          </div>
-          <div className="space-y-4">
-            <label className="block">
-              <span className="mb-2 block text-xs uppercase tracking-[0.28em] text-muted-foreground">Provider</span>
-              <select
-                className="glass-input w-full rounded-2xl border border-white/8 bg-transparent px-3 py-3 text-sm text-white outline-none"
-                value={currentSettings.provider}
-                onChange={(event) => updateSettings({ provider: event.target.value as AISettings['provider'] }).catch((error) => console.error(error))}
-              >
-                {providerOptions.map((option) => (
-                  <option key={option.value} value={option.value} className="bg-slate-950">
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+    setDirty(true); setNotice(''); setError('');
 
-            <label className="block">
-              <span className="mb-2 block text-xs uppercase tracking-[0.28em] text-muted-foreground">Detected Models</span>
-              <select
-                className="glass-input mb-3 w-full rounded-2xl border border-white/8 bg-transparent px-3 py-3 text-sm text-white outline-none"
-                value={currentSettings.model}
-                onChange={(event) => updateSettings({ model: event.target.value }).catch((error) => console.error(error))}
-              >
-                {modelOptions.map((modelId) => (
-                  <option key={modelId} value={modelId} className="bg-slate-950">
-                    {modelId}
-                  </option>
-                ))}
-              </select>
+  };
 
-              <span className="mb-2 block text-xs uppercase tracking-[0.28em] text-muted-foreground">Model</span>
-              <Input
-                value={currentSettings.model}
-                onChange={(event) => updateSettings({ model: event.target.value }).catch((error) => console.error(error))}
-                className="glass-input border-white/8"
-              />
-            </label>
+  const pending = dirty || !!key || clearKey;
 
-            <label className="block">
-              <span className="mb-2 block text-xs uppercase tracking-[0.28em] text-muted-foreground">Ollama URL</span>
-              <Input
-                value={currentSettings.ollamaUrl}
-                onChange={(event) => updateSettings({ ollamaUrl: event.target.value }).catch((error) => console.error(error))}
-                className="glass-input border-white/8"
-              />
-            </label>
+  const savedConnection = draft && settings && draft.provider === settings.provider && draft.customEndpoint === settings.customEndpoint;
 
-            <label className="block">
-              <span className="mb-2 block text-xs uppercase tracking-[0.28em] text-muted-foreground">API Key</span>
-              <Input
-                value={currentSettings.apiKey}
-                onChange={(event) => updateSettings({ apiKey: event.target.value }).catch((error) => console.error(error))}
-                className="glass-input border-white/8"
-                placeholder="Optional for Ollama, required for hosted providers"
-                type="password"
-              />
-            </label>
-          </div>
-        </section>
+  const urlValid = (value: string) => {try {const url = new URL(value); return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password;} catch {return false;}};
 
-        <section className="glass-panel rounded-3xl p-5">
-          <div className="mb-4 flex items-center gap-2">
-            <SlidersHorizontal className="h-4 w-4 text-emerald-300" />
-            <h2 className="text-lg font-semibold text-white">Generation</h2>
-          </div>
-          <div className="space-y-4">
-            <label className="block">
-              <span className="mb-2 block text-xs uppercase tracking-[0.28em] text-muted-foreground">Temperature</span>
-              <Input
-                type="number"
-                step="0.1"
-                value={currentSettings.temperature}
-                onChange={(event) => updateSettings({ temperature: Number(event.target.value) }).catch((error) => console.error(error))}
-                className="glass-input border-white/8"
-              />
-            </label>
+  const temperatureError = draft && (!Number.isFinite(draft.temperature) || draft.temperature < 0 || draft.temperature > 2) ? 'Temperature must be between 0 and 2.' : '';
 
-            <label className="block">
-              <span className="mb-2 block text-xs uppercase tracking-[0.28em] text-muted-foreground">Max Tokens</span>
-              <Input
-                type="number"
-                value={currentSettings.maxTokens}
-                onChange={(event) => updateSettings({ maxTokens: Number(event.target.value) }).catch((error) => console.error(error))}
-                className="glass-input border-white/8"
-              />
-            </label>
+  const tokenError = draft && (!Number.isInteger(draft.maxTokens) || draft.maxTokens < 1 || draft.maxTokens > 65536) ? 'Maximum tokens must be a whole number between 1 and 65,536.' : '';
 
-            <label className="block">
-              <span className="mb-2 block text-xs uppercase tracking-[0.28em] text-muted-foreground">Performance Mode</span>
-              <select
-                className="glass-input w-full rounded-2xl border border-white/8 bg-transparent px-3 py-3 text-sm text-white outline-none"
-                value={currentSettings.performanceMode}
-                onChange={(event) => updateSettings({ performanceMode: event.target.value as AISettings['performanceMode'] }).catch((error) => console.error(error))}
-              >
-                <option value="balanced" className="bg-slate-950">Balanced</option>
-                <option value="quality" className="bg-slate-950">Quality</option>
-                <option value="speed" className="bg-slate-950">Speed</option>
-              </select>
-            </label>
-          </div>
-        </section>
+  const validation = !draft?.provider ? 'Choose a provider.' : draft.provider === 'custom' && !urlValid(draft.customEndpoint) ? 'Use an HTTP or HTTPS endpoint without embedded credentials.' : temperatureError || tokenError;
 
-        <section className="glass-panel rounded-3xl p-5">
-          <div className="mb-4 flex items-center gap-2">
-            <Shield className="h-4 w-4 text-amber-300" />
-            <h2 className="text-lg font-semibold text-white">Autonomy & Safety</h2>
-          </div>
-          <div className="space-y-4">
-            <label className="block">
-              <span className="mb-2 block text-xs uppercase tracking-[0.28em] text-muted-foreground">Autonomy Level</span>
-              <select
-                className="glass-input w-full rounded-2xl border border-white/8 bg-transparent px-3 py-3 text-sm text-white outline-none"
-                value={currentSettings.autonomyLevel}
-                onChange={(event) => updateSettings({ autonomyLevel: event.target.value as AISettings['autonomyLevel'] }).catch((error) => console.error(error))}
-              >
-                <option value="guarded" className="bg-slate-950">Guarded</option>
-                <option value="balanced" className="bg-slate-950">Balanced</option>
-                <option value="extended" className="bg-slate-950">Extended</option>
-              </select>
-            </label>
+  const save = async () => {
 
-            <label className="block">
-              <span className="mb-2 block text-xs uppercase tracking-[0.28em] text-muted-foreground">Tool Permissions</span>
-              <select
-                className="glass-input w-full rounded-2xl border border-white/8 bg-transparent px-3 py-3 text-sm text-white outline-none"
-                value={currentSettings.toolPermissions}
-                onChange={(event) => updateSettings({ toolPermissions: event.target.value as AISettings['toolPermissions'] }).catch((error) => console.error(error))}
-              >
-                <option value="ask" className="bg-slate-950">Ask</option>
-                <option value="safe-only" className="bg-slate-950">Safe Only</option>
-                <option value="manual" className="bg-slate-950">Manual</option>
-              </select>
-            </label>
-          </div>
-        </section>
+    if (!draft || validation) return;
 
-        <section className="glass-panel rounded-3xl p-5">
-          <div className="mb-4 flex items-center gap-2">
-            <MoonStar className="h-4 w-4 text-blue-300" />
-            <h2 className="text-lg font-semibold text-white">Appearance</h2>
-          </div>
-          <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-2">
-              <Button variant={theme === 'dark' ? 'default' : 'outline'} onClick={() => setTheme('dark')}>Dark</Button>
-              <Button variant={theme === 'light' ? 'default' : 'outline'} onClick={() => setTheme('light')}>Light</Button>
-              <Button variant={theme === 'system' ? 'default' : 'outline'} onClick={() => setTheme('system')}>System</Button>
-            </div>
+    setBusy(true);setError('');setNotice('');
 
-            <div className="rounded-3xl border border-white/8 bg-white/[0.03] px-4 py-4 text-sm text-muted-foreground">
-              CruX keeps the desktop UI in premium dark mode by default, but theme switching is still available for accessibility and daylight use.
-            </div>
+    try {
 
-            <Button className="w-full justify-center gap-2" onClick={() => updateSettings({ ...currentSettings }).catch((error) => console.error(error))}>
-              <Save className="h-4 w-4" />
-              Save Settings
-            </Button>
-          </div>
-        </section>
-      </div>
-    </div>
-  );
+      const values = {...draft};
+
+      delete (values as Partial<AISettings>).apiKey; delete (values as Partial<AISettings>).hasApiKey;
+
+      const changed = Object.fromEntries(Object.entries(values).filter(([field,value]) => settings?.[field as keyof AISettings] !== value)) as Partial<AISettings>;
+
+      if (clearKey) changed.apiKey=''; else if(key.trim()) changed.apiKey=key.trim();
+
+      await updateSettings(changed);
+
+      setDirty(false);setKey('');setClearKey(false);setNotice('Connection saved. Choose an available model below.');
+
+    } catch(reason) {setError(reason instanceof Error ? reason.message : String(reason));} finally {setBusy(false);}
+
+  };
+
+  const testConnection = async () => {
+
+    if (connectionTesting || autoModelLoading || testLock.current || pending || busy || settingsSaving || isGenerating || (!settings?.hasApiKey && settings?.provider !== 'ollama') || !settings?.model) return;
+
+    testLock.current = true; setConnectionTesting(true); setTesting(true); setTestError('');
+
+    const epoch = ++testEpoch.current;
+
+    try {
+
+      const response = await window.electron.ai.testConnection();
+
+      if (epoch !== testEpoch.current) return;
+
+      if (!response.success || !response.data) throw new Error('Connection failed. Try again.');
+
+      setTestResult(response.data); setNow(Date.now());
+
+      if (response.data.success) toast.success(`${providers.find(item=>item.value===settings.provider)?.label ?? 'Provider'} connection successful.`);
+
+      else toast.error(response.data.message);
+
+    } catch {
+
+      if (epoch === testEpoch.current) {setTestResult(null);setTestError('Connection failed. Try again.');toast.error('Connection failed. Try again.');}
+
+    } finally {setConnectionTesting(false);void useStore.getState().refreshModels();if (epoch === testEpoch.current) {testLock.current = false;setTesting(false);}}
+
+  };
+
+  const visibleResult = pending ? null : testResult;
+
+  const visibleTestError = pending ? '' : testError;
+
+  const testedAgo = visibleResult ? Math.max(0, Math.floor((now - Date.parse(visibleResult.testedAt)) / 60000)) : 0;
+
+  const status = testing ? 'Testing' : visibleResult?.success ? 'Connected' : visibleResult || visibleTestError ? 'Connection error' : 'Not tested';
+
+  const StatusIcon = testing ? Loader2 : visibleResult?.success ? CheckCircle : visibleResult || visibleTestError ? XCircle : Wifi;
+
+  if (!draft) return <div className="workspace-loading">Loading settings…</div>;
+
+  return <div className="settings-page"><div className="settings-sheet">
+
+    <header className="settings-heading"><h1>Connect your AI</h1><p>Choose a provider, save your connection, then select a model.</p></header>
+
+    <fieldset disabled={busy || isGenerating || testing || settingsSaving || autoModelLoading || connectionTesting} className="settings-form">
+
+      <label htmlFor="provider"><span className="setup-step" aria-hidden="true">1</span> Provider<select id="provider" className="settings-select" value={draft.provider} onChange={(event) => change({provider:event.target.value as AISettings['provider']})}><option value="">Choose provider</option>{providers.map((provider) => <option key={provider.value} value={provider.value}>{provider.label}</option>)}</select></label>
+
+      <section className="provider-card" aria-label={`${providers.find((provider) => provider.value === draft.provider)?.label ?? 'Provider'} configuration`}>
+
+      {draft.provider && <h2>{providers.find((provider) => provider.value === draft.provider)?.label}</h2>}
+
+      {draft.provider === 'custom' && <label htmlFor="custom-url">Base URL<Input id="custom-url" value={draft.customEndpoint} placeholder="https://your-provider.example/v1" aria-invalid={!urlValid(draft.customEndpoint)} aria-describedby="custom-url-help" onChange={(event) => change({customEndpoint:event.target.value})}/>{!urlValid(draft.customEndpoint) && <small id="custom-url-help" className="field-error">Enter a complete HTTP or HTTPS endpoint.</small>}</label>}
+
+      {draft.provider && draft.provider !== 'ollama' && <label htmlFor="api-key"><span className="setup-step" aria-hidden="true">2</span> API key<Input id="api-key" type="password" autoComplete="off" disabled={clearKey || busy} value={key} onChange={(event) => {setKey(event.target.value);setNotice('');}} placeholder={savedConnection && settings?.hasApiKey ? 'Leave blank to keep saved key' : 'Enter API key'}/><small>{savedConnection && settings?.hasApiKey ? 'Your encrypted key is saved.' : draft.provider === 'custom' ? 'Optional if your endpoint needs no key.' : 'Your key is encrypted and stored on this device.'}</small></label>}
+
+      {draft.provider === 'ollama' && <p className="settings-helper">Connects to Ollama on this device. No API key is needed.</p>}
+
+      <div className="connection-save-row"><Button disabled={busy || isGenerating || !pending || !!validation} onClick={() => void save()}>{busy ? 'Saving…' : 'Save & verify models'}</Button><small>Connection changes require confirmation.</small></div>
+
+      {error && <p className="field-error" role="alert">{error}</p>}{notice && <p className="settings-helper" role="status">{notice}</p>}{pending && validation && <p className="field-error" role="alert">{validation}</p>}
+
+      <section className="setup-model"><p className="setup-model-label"><span className="setup-step" aria-hidden="true">3</span> Choose a model</p>{!pending ? <ModelSelector/> : <p className="settings-helper">Save your connection to verify its models.</p>}</section>
+
+      {draft.provider && <div className="connection-diagnostic" aria-busy={testing}>
+
+        <Button variant="outline" disabled={pending || busy || settingsSaving || isGenerating || testing || (!settings?.hasApiKey && settings?.provider !== 'ollama') || !settings?.model} onClick={() => void testConnection()}>
+
+          <StatusIcon aria-hidden="true" className={`h-4 w-4 mr-2 ${testing ? 'connection-spinner' : ''}`}/>{testing ? 'Testing connection…' : visibleResult?.success ? 'Connected' : visibleResult || visibleTestError ? 'Connection failed' : 'Test Connection'}
+
+        </Button>
+
+        <small>{pending ? 'Save your changes before testing.' : !settings?.hasApiKey && settings?.provider !== 'ollama' ? 'Save an API key to test the connection.' : !settings.model ? 'Choose a model before testing.' : 'Tests the saved key and selected model with a minimal request.'}</small>
+
+        <motion.div key={status} initial={reducedMotion ? false : {opacity:0}} animate={{opacity:1}} transition={{duration:0.15}} className="connection-result" role="status" aria-live="polite" aria-atomic="true">
+
+          <p className={`connection-status ${visibleResult?.success ? 'connection-success' : visibleResult || visibleTestError ? 'connection-error' : ''}`}><StatusIcon aria-hidden="true" className={`h-4 w-4 ${testing ? 'connection-spinner' : ''}`}/>{status}</p>
+
+          <p className="settings-helper">{visibleResult ? `Last test: ${visibleResult.success ? 'Successful' : 'Failed'}` : 'No result for the current saved configuration.'}</p>
+
+          {visibleResult && <dl className="connection-metadata"><dt>Tested</dt><dd title={new Date(visibleResult.testedAt).toLocaleString()}>{testedAgo < 1 ? 'Just now' : `${testedAgo} minute${testedAgo === 1 ? '' : 's'} ago`}</dd><dt>Model</dt><dd>{visibleResult.model}</dd><dt>Latency</dt><dd>{visibleResult.latencyMs} ms</dd></dl>}
+
+          {!visibleResult?.success && (visibleResult || visibleTestError) && <p className="field-error">{visibleResult?.message ?? visibleTestError}</p>}
+
+        </motion.div>
+
+        {visibleResult && <details className="connection-details"><summary>View Details</summary><dl className="connection-metadata"><dt>HTTP status</dt><dd>{visibleResult.status ?? 'Unavailable'}</dd><dt>Provider code</dt><dd>{visibleResult.code ?? 'None'}</dd><dt>Request ID</dt><dd>{visibleResult.requestId ?? 'Unavailable'}</dd><dt>Message</dt><dd>{visibleResult.message}</dd></dl></details>}
+
+      </div>}
+
+      </section>
+
+      <details className="settings-advanced"><summary>Advanced settings</summary><div className="advanced-fields">
+
+        <label htmlFor="temperature">Temperature<Input id="temperature" type="number" min="0" max="2" step="0.1" value={Number.isFinite(draft.temperature) ? draft.temperature : ''} onChange={(event) => change({temperature:event.target.valueAsNumber})} aria-invalid={!!temperatureError}/>{temperatureError && <small className="field-error">{temperatureError}</small>}</label>
+
+        <label htmlFor="max-tokens">Maximum tokens<Input id="max-tokens" type="number" min="1" max="65536" step="1" value={Number.isFinite(draft.maxTokens) ? draft.maxTokens : ''} onChange={(event) => change({maxTokens:event.target.valueAsNumber})} aria-invalid={!!tokenError}/>{tokenError && <small className="field-error">{tokenError}</small>}</label>
+
+        {draft.provider && draft.provider !== 'ollama' && <label className="settings-checkbox"><input type="checkbox" checked={clearKey} onChange={(event) => {setClearKey(event.target.checked);setNotice('');}}/>Remove saved API key when saving</label>}
+
+        <Button variant="outline" disabled={busy || isGenerating || !pending || !!validation} onClick={() => void save()}>Save changes</Button>
+
+        <button className="reset-settings" disabled={!pending || busy} onClick={() => {setDraft(settings);setDirty(false);setKey('');setClearKey(false);setError('');setNotice('Changes discarded.');}}>Discard changes</button>
+
+      </div></details>
+
+    </fieldset>
+
+  </div></div>;
+
 }

@@ -1,33 +1,30 @@
+import type { ConnectionTestResult } from '../../electron/services/aiService';
+import type { AgentAPI } from '../../electron/services/agent/contracts';
 declare global {
 type AsyncResult<T> = Promise<{ success: boolean; data?: T; error?: string }>;
 
-type AIProvider = 'ollama' | 'openrouter' | 'openai' | 'anthropic' | 'custom';
+type AIProvider = '' | 'ollama' | 'openrouter' | 'openai' | 'anthropic' | 'custom' | 'gemini' | 'groq' | 'deepseek' | 'mistral' | 'xai' | 'together';
 
 interface AISettings {
   provider: AIProvider;
   model: string;
+  autoModel?: boolean;
   temperature: number;
   maxTokens: number;
   ollamaUrl: string;
   openaiBaseUrl: string;
   customEndpoint: string;
   apiKey: string;
+  hasApiKey?: boolean;
   autonomyLevel: 'guarded' | 'balanced' | 'extended';
   toolPermissions: 'ask' | 'safe-only' | 'manual';
   performanceMode: 'balanced' | 'quality' | 'speed';
 }
 
-interface ModelInfo {
-  id: string;
-  name: string;
-  provider: AIProvider;
-  status: 'ready' | 'offline' | 'error' | 'loading';
-  healthy: boolean;
-  ramUsage: string;
-  size?: number;
-  modifiedAt?: string;
-  details?: string;
-}
+type ModelInfo = import('../../electron/services/aiService').ModelInfo;
+type ModelVerificationStatus = import('../../electron/services/aiService').ModelVerificationStatus;
+
+type AutoModelResult = import('../../electron/services/aiService').AutoModelResult;
 
 interface ProviderHealth {
   provider: AIProvider;
@@ -68,6 +65,7 @@ interface TerminalSessionInfo {
 }
 
 interface ElectronAPI {
+  agent: AgentAPI;
   file: {
     read: (filePath: string) => AsyncResult<string>;
     write: (filePath: string, content: string) => AsyncResult<void>;
@@ -93,6 +91,13 @@ interface ElectronAPI {
     };
     abort: () => AsyncResult<void>;
     getModels: () => AsyncResult<ModelInfo[]>;
+    testConnection: () => AsyncResult<ConnectionTestResult>;
+    findWorkingModel: () => AsyncResult<AutoModelResult>;
+    getModelVerification: () => AsyncResult<ModelVerificationStatus>;
+    cancelModelVerification: () => AsyncResult<ModelVerificationStatus>;
+    startModelVerification: (retest?:boolean) => AsyncResult<ModelVerificationStatus>;
+    resumeModelVerification: () => AsyncResult<ModelVerificationStatus>;
+    getConnectionTest: () => AsyncResult<ConnectionTestResult | null>;
     getHealth: () => AsyncResult<ProviderHealth[]>;
     getSettings: () => AsyncResult<AISettings>;
     updateSettings: (settings: Partial<AISettings>) => AsyncResult<AISettings>;
@@ -101,6 +106,8 @@ interface ElectronAPI {
     open: () => AsyncResult<string>;
     close: () => AsyncResult<void>;
     getPath: () => AsyncResult<string>;
+    listRecent: () => AsyncResult<string[]>;
+    activate: (projectPath: string) => AsyncResult<string>;
   };
   config: {
     get: (key: string) => AsyncResult<unknown>;

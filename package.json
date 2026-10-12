@@ -1,7 +1,7 @@
 {
   "name": "crux-desktop",
   "version": "1.0.0",
-  "description": "CruX desktop AI IDE",
+  "description": "Crux AI desktop coding agent",
   "main": "electron/dist/main/index.js",
   "author": "CruX",
   "license": "MIT",
@@ -13,9 +13,11 @@
     "build": "npm run build:frontend && npm run build:electron",
     "build:frontend": "cd frontend && npm run build",
     "build:electron": "cd electron && npm run build",
-    "package": "npm run build && electron-packager . CruX --platform=win32 --arch=x64 --out=release --overwrite --asar --prune=true",
+    "package": "npm run build && node scripts/package.cjs",
     "lint": "eslint . --ext .ts,.tsx",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit -p frontend/tsconfig.json && tsc --noEmit -p electron/tsconfig.json",
+    "test": "npm run build:electron && node --test tests/agent-runtime.test.cjs tests/model-discovery.test.cjs tests/project-selection.test.cjs tests/agent-catalog.test.cjs tests/agent-streaming.test.cjs tests/agent-security-review.test.cjs tests/agent-intent.test.cjs tests/connection-test.test.cjs tests/coding-tools.test.cjs tests/coding-security.test.cjs tests/provider-auto.test.cjs tests/provider-auto-backend.test.cjs tests/provider-verification.test.cjs tests/provider-connection.test.cjs tests/structured-actions.test.cjs tests/provider-actions.test.cjs",
+    "test:runtime": "node tests/electron-smoke.cjs"
   },
   "dependencies": {
     "axios": "^1.6.0",
@@ -24,6 +26,7 @@
   },
   "devDependencies": {
     "@electron/packager": "^20.0.0",
+    "@playwright/test": "^1.63.0",
     "@types/node": "^20.10.0",
     "@typescript-eslint/eslint-plugin": "^8.59.0",
     "@typescript-eslint/parser": "^8.59.0",

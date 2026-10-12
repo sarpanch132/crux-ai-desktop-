@@ -10,3 +10,13 @@ build/
 Thumbs.db
 .vscode/
 .idea/
+tests/artifacts/
+.env.*
+!.env.example
+*.tsbuildinfo
+graphify-out/
+playwright-report/
+test-results/
+docs/CRUX-AI-INTERVIEW-KNOWLEDGE-BASE.txt
+docs/superpowers/
+docs/sdlc-publish.md

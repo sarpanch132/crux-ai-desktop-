@@ -19,6 +19,8 @@ import { registerIPCHandlers } from '../ipc/handlers.js';
 import { AIService } from '../services/aiService.js';
 import { FileService } from '../services/fileService.js';
 import { TerminalService } from '../services/terminalService.js';
+import { AgentRuntime } from '../services/agent/runtime.js';
+import { BrowserAdapter } from '../services/agent/browserAdapter.js';
 
 interface WindowState {
   x?: number;
@@ -49,6 +51,9 @@ const aiService = new AIService(store);
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
+const runtime = new AgentRuntime(store, aiService, fileService, terminalService, path.join(app.getPath('userData'), 'agent'), snapshot => mainWindow?.webContents.send('agent:updated', snapshot), new BrowserAdapter());
+terminalService.on('output', output => mainWindow?.webContents.send('terminal:output', output));
+terminalService.on('session-updated', info => mainWindow?.webContents.send('terminal:session-updated', info));
 
 const isDev = !app.isPackaged;
 
@@ -109,15 +114,15 @@ function createWindow(): void {
     height: state.height,
     minWidth: 1100,
     minHeight: 720,
-    title: 'CruX',
-    backgroundColor: '#06070b',
+    title: 'Crux AI',
+    backgroundColor: '#080808',
     show: false,
     icon: getWindowIcon(),
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false,
+      sandbox: true,
       spellcheck: true,
     },
   });
@@ -159,32 +164,21 @@ function createWindow(): void {
     }).catch(() => undefined);
   });
 
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url).catch((error) => {
-      log.error('Failed to open external URL:', error);
-    });
-    return { action: 'deny' };
-  });
+  mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
 
   mainWindow.webContents.on('will-navigate', (event, url) => {
-    if (isDev && url.startsWith('http://localhost:5173')) {
-      return;
-    }
-
-    if (url.startsWith('file://')) {
+    if (isDev && new URL(url).origin === 'http://localhost:5173') {
       return;
     }
 
     event.preventDefault();
-    shell.openExternal(url).catch((error) => {
-      log.error('Failed to open navigation target:', error);
-    });
   });
 
   registerIPCHandlers(ipcMain, {
     fileService,
     terminalService,
     aiService,
+    runtime,
     store,
     mainWindow: () => mainWindow,
   });
@@ -213,16 +207,12 @@ function createTray(): void {
   tray = new Tray(getWindowIcon());
   const menu = Menu.buildFromTemplate([
     {
-      label: 'Show CruX',
+      label: 'Show Crux AI',
       click: () => mainWindow?.show(),
-    },
-    {
-      label: 'New Chat',
-      click: () => mainWindow?.webContents.send('app:new-chat'),
     },
     { type: 'separator' },
     {
-      label: 'Quit CruX',
+      label: 'Quit Crux AI',
       click: () => {
         isQuitting = true;
         app.quit();
@@ -230,7 +220,7 @@ function createTray(): void {
     },
   ]);
 
-  tray.setToolTip('CruX');
+  tray.setToolTip('Crux AI');
   tray.setContextMenu(menu);
   tray.on('double-click', () => mainWindow?.show());
 }
@@ -240,23 +230,6 @@ function createMenu(): void {
     {
       label: 'File',
       submenu: [
-        {
-          label: 'New Chat',
-          accelerator: 'CmdOrCtrl+N',
-          click: () => mainWindow?.webContents.send('app:new-chat'),
-        },
-        {
-          label: 'Open Project',
-          accelerator: 'CmdOrCtrl+O',
-          click: async () => {
-            const result = await dialog.showOpenDialog(mainWindow!, { properties: ['openDirectory'] });
-            if (!result.canceled && result.filePaths[0]) {
-              store.set('workspace.currentProject', result.filePaths[0]);
-              mainWindow?.webContents.send('project:opened', result.filePaths[0]);
-            }
-          },
-        },
-        { type: 'separator' },
         { role: 'quit' },
       ],
     },
@@ -272,16 +245,16 @@ function createMenu(): void {
       label: 'Help',
       submenu: [
         {
-          label: 'CruX Docs',
+          label: 'Ollama documentation',
           click: () => shell.openExternal('https://ollama.com').catch(() => undefined),
         },
         {
-          label: 'About CruX',
+          label: 'About Crux AI',
           click: () => {
             dialog.showMessageBox(mainWindow!, {
               type: 'info',
-              title: 'About CruX',
-              message: 'CruX',
+              title: 'About Crux AI',
+              message: 'Crux AI',
               detail: `Version ${app.getVersion()}\nElectron ${process.versions.electron}\nNode ${process.versions.node}`,
             }).catch(() => undefined);
           },
@@ -337,6 +310,7 @@ app.whenReady().then(() => {
 
 app.on('before-quit', () => {
   isQuitting = true;
+  runtime.projectChanged();
   saveWindowState();
 });
 

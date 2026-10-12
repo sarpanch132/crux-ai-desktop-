@@ -2,6 +2,12 @@
 
 A local desktop AI coding workspace built with Electron, React and TypeScript. Plan, implement and debug in one persistent project session, with configurable providers, reusable agents and skills, and permission-controlled tools.
 
+## UI preview
+
+![Crux AI desktop home and chat composer](docs/images/crux-desktop-ui.png)
+
+Current desktop UI captured with an empty profile; no private projects or credentials are shown.
+
 ## Installation
 
 Requirements: **Node.js 22 LTS**, npm, Git and a graphical desktop session. Windows is the locally tested target.
